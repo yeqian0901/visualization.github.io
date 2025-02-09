@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Global Food Security Index 2022 Visualization</title>
+    <script src="https://d3js.org/d3.v6.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-color: #e8f5e9;               /* 浅绿色背景 */
+            --container-bg: #ffffff;            /* 白色容器 */
+            --primary-color: #4CAF50;           /* 充满活力的绿色 */
+            --primary-hover: #388E3C;
+            --text-color: #1B5E20;              /* 深绿色文字 */
+            --border-color: #A5D6A7;            /* 边框颜色 */
+            --map-green-light: #AED581;         /* 地图渐变起始色 */
+            --map-green-dark:  #4CAF50;          /* 地图渐变结束色 */
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+
+        header {
+            background-color: var(--primary-color);
+            padding: 20px;
+            text-align: center;
+        }
+        header h1 {
+            margin: 0;
+            color: #ffffff;
+            font-size: 36px;
+        }
+
+        /* 紧凑式国家数据面板 */
+        #info {
+            background-color: var(--container-bg);
+            margin: 10px auto;
+            max-width: 960px;
+            padding: 10px 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+        }
+        #info .country-name {
+            font-size: 20px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        #info .metrics {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            font-size: 16px;
+        }
+        #info .metric {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+        }
+
+        /* 主内容区域：地图与雷达图左右分栏 */
+        #main-content {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            max-width: 960px;
+            margin: 0 auto 20px;
+            gap: 20px;
+            padding: 0 20px;
+        }
+        #map {
+            flex: 2;
+            background-color: var(--container-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            position: relative;
+        }
+        #map svg {
+            border-radius: 8px;
+        }
+        #chartContainer {
+            flex: 1;
+            background-color: var(--container-bg);
+            border-radius: 8px;
+            padding: 10px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+            width: 800px;    /* 增加雷达图宽度 */
+            height: 600px;
+        }
+
+        /* Tooltip 样式 */
+        .tooltip {
+            position: absolute;
+            padding: 8px 12px;
+            background-color: var(--primary-color);
+            color: #ffffff;
+            border-radius: 4px;
+            pointer-events: none;
+            font-size: 14px;
+            display: none;
+            z-index: 10;
+        }
+
+        /* 解释栏目：说明各维度意义 */
+        #explanation {
+            background-color: var(--container-bg);
+            max-width: 960px;
+            margin: 20px auto;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
+        #explanation h2 {
+            margin-top: 0;
+            text-align: center;
+            color: var(--primary-color);
+        }
+        #explanation .dimension {
+            margin-bottom: 15px;
+        }
+        #explanation .dimension h3 {
+            margin: 5px 0;
+            color: var(--text-color);
+        }
+        #explanation .dimension p {
+            margin: 0;
+            font-size: 16px;
+            color: var(--text-color);
+            line-height: 1.5;
+        }
+
+    </style>
+</head>
+<body>
+<header>
+    <h1>Global Food Security Index 2022</h1>
+</header>
+
+<!-- 紧凑式国家数据面板 -->
+<div id="info">
+    <div class="country-name">
+        🌍 <span id="country-name">Click a country on the map</span>
+    </div>
+    <div class="metrics">
+        <span class="metric" title="Rank">🏆 <span id="rank"></span></span>
+        <span class="metric" title="Overall Score">⭐ <span id="overall"></span></span>
+        <span class="metric" title="Affordability">💲 <span id="affordability"></span></span>
+        <span class="metric" title="Availability">📦 <span id="availability"></span></span>
+        <span class="metric" title="Quality & Safety">🛡️ <span id="quality"></span></span>
+        <span class="metric" title="Sustainability & Adaptation">🍃 <span id="sustainability"></span></span>
+    </div>
+</div>
+
+<!-- 主内容区域：地图 & 雷达图 -->
+<div id="main-content">
+    <div id="map"></div>
+    <div id="chartContainer">
+        <canvas id="radarChart"></canvas>
+    </div>
+</div>
+
+<!-- 解释栏目 -->
+<div id="explanation">
+    <h2>Understanding the Dimensions</h2>
+    <div class="dimension">
+        <h3>Affordability</h3>
+        <p>Measures the ability of consumers to purchase food, their vulnerability to price shocks, and the existence of policies and programmes to support consumers during shocks.</p>
+    </div>
+    <div class="dimension">
+        <h3>Availability</h3>
+        <p>Assesses agricultural production and on-farm capabilities, the risk of supply disruption, and national capacity to disseminate food as well as research efforts to boost production.</p>
+    </div>
+    <div class="dimension">
+        <h3>Quality & Safety</h3>
+        <p>Evaluates the variety and nutritional quality of diets, as well as food safety standards.</p>
+    </div>
+    <div class="dimension">
+        <h3>Sustainability & Adaptation</h3>
+        <p>Examines a country's exposure to climate change impacts, its susceptibility to natural resource risks, and how it is adapting to these challenges.</p>
+    </div>
+</div>
+
+<div class="tooltip" id="tooltip"></div>
+
+<script src="main.js"></script>
+</body>
+</html>
